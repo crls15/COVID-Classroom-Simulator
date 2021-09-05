@@ -1,16 +1,14 @@
-//Miembros del equipo: Carlos Rafael Flores Gallardo, Oscar Ruiz Ramírez,
-//Alejandro Gras Olea
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include <windows.h>
 
+//Change this for a bigger or smaller classroom
 #define ROWS 30
 #define COLLS 30
 
-
-enum BOOLEAN {FALSE,TRUE};
+enum BOOLEAN {False, True};
 enum STATUS_CELL{LIBRE,OCUPADA};
 enum STATUS_COVID{SANO,ENFERMO,RECUPERADO};
 
@@ -29,38 +27,22 @@ typedef struct CELL
 
 }CELL;
 
-//Regresa un número random en el rango de 0 a n
-int randNum(int n)
+
+int randInt(int n) //Return a random int
 {
-    int numRand;
-    numRand=rand();
-    return numRand%n ;
+    return rand()%n ;
 }
 
-//Hace un tiro aleatorio del 1 al 100 y devuelve 1 si el número obtenido
-//es menor o igual a probSuccess
-int probPercent(int probSuccess)
+
+int probPercent(int probSuccess) //Return true if the random int <= probSuccess
 {
-    int probNum;
-    probNum=randNum(100);    
-    if(probNum<=probSuccess)
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
+    return randInt(100) <= probSuccess? 1:0;
 }
 
-//Pone en estado default a todas las celdas de la matriz principal para no
-//tener valores basura.
-void matrixNoneValues( CELL *matrix)
+void matrixNoneValues(CELL *matrix)//Set all the value to 0 on the matrix
 {
     CELL *mtx;
-    int totalCells=ROWS*COLLS;
-
-    for(int i=0;i<totalCells;i++)
+    for(int i=0;i<ROWS*COLLS;i++)
     {
         mtx=matrix+i;
         mtx->statusCell=LIBRE;
@@ -74,7 +56,8 @@ void matrixNoneValues( CELL *matrix)
 
 //Establece aleatoriamente en estado ocupado y sano en la matriz principal al porcentaje de celdas
 //que se le indique y a la mitad les asigna cubrebocas.
-void initializer( CELL *matrix, int probability)
+void initializer( CELL *matrix, int probability)//Set random cells into occupied and non-infected by the given percentage of cells
+                                                // and set the half with a mask
 {
     CELL *mtx;
     int totalCells=ROWS*COLLS;
@@ -90,17 +73,17 @@ void initializer( CELL *matrix, int probability)
         {   
             mtx->statusCell=OCUPADA;
             mtx->numID=occCellsCount+1;
-            mtx->age=(randNum(90)+1);
+            mtx->age=(randInt(90)+1);
             mtx->statusCovid=SANO;
             contadorSanos+=1;
             
             if((occCellsCount+1)%2==0)
             {
-                mtx->mask=TRUE;
+                mtx->mask=True;
             }
             else
             {
-                mtx->mask=FALSE;
+                mtx->mask=False;
             } 
             occCellsCount+=1;
         }
@@ -117,10 +100,9 @@ void initializer( CELL *matrix, int probability)
 
 }
 
-//Imprime la matriz de celdas, seleccionando la letra adecuada para hacerlo según su estatus
-//de ocupación, de infección y de uso de máscara.
-void printerMat(CELL *matrix)
+void printerMat(CELL *matrix) //Print the matrix with the correct letter to show the state of the cell
 {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     printf("\n ");
     CELL *mtx;
     char cellStatus;
@@ -132,7 +114,8 @@ void printerMat(CELL *matrix)
         {
             if(mtx->statusCovid==SANO)
             {
-                if(mtx->mask==FALSE)
+                SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE);
+                if(mtx->mask==False)
                 {
                     cellStatus='S';
                 }
@@ -144,7 +127,8 @@ void printerMat(CELL *matrix)
             }
             else if(mtx->statusCovid==ENFERMO)
             {
-                if(mtx->mask==FALSE)
+                SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+                if(mtx->mask==False)
                 {
                     cellStatus='E';
                 }
@@ -156,6 +140,7 @@ void printerMat(CELL *matrix)
             }
             else
             {
+                SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN);
                 cellStatus='r';
             }
 
@@ -166,27 +151,26 @@ void printerMat(CELL *matrix)
         }
         if((i+1)%COLLS==0)
         {
+            
             printf(" %c\n ",cellStatus);
         }
         else
         {
             printf(" %c ",cellStatus);
         }
-        
+        SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
     }
 }
 
-//Escoge una celda ocupada aleatoria en la matriz principal, y la vuelve el
-//primer paciente infectado.
-void randomMatElementChange(CELL *matrix)
+void randomMatElementChange(CELL *matrix) //Start of the infection by selection one occupied random cell
 {
     CELL *mtx;
     int totalCells=ROWS*COLLS;
     
-    int cond=0; //Esta condición romperá el ciclo while cuando se infecte a la primera persona.
+    int cond=0; 
     while(cond==0)
     {
-        int randElement= randNum(totalCells-1);
+        int randElement= randInt(totalCells-1);
         mtx=matrix+randElement;
         
         if(mtx->statusCell==OCUPADA) 
@@ -199,10 +183,8 @@ void randomMatElementChange(CELL *matrix)
     }
 }
 
-//Le agrega un día a todos los contadores de días de infección a los que
-//actualmente se encuentren infectados, y si llegan a siete días, los vuelve
-//recuperados.
-void oneDayPlus(CELL *matrix)
+
+void oneDayPlus(CELL *matrix) //Add one day into the infected cell counter, and if this counter reaches 7 turns it into a recovered cell
 {
     CELL *mtx;
     int totalCells=ROWS*COLLS;
@@ -225,17 +207,13 @@ void oneDayPlus(CELL *matrix)
     }
 }
 
-
-//Revisa si es posible que una celda sea infectada, y si es el caso, entonces 
-//decidirá si se infecta basándose en probabilidad y dependiendo del estado de la
-//celda emisora y receptora de la infección.
-void conditionSpread(CELL *mtx, CELL *objChange) //objChange es la celda que se infectará
+void conditionSpread(CELL *mtx, CELL *objChange) //Will try to infect the objChange cell by the conditions
 {
     if(objChange->statusCell==OCUPADA) 
     {
         if(objChange->statusCovid==SANO) 
         {
-            if(objChange->mask==TRUE && mtx->mask==TRUE)
+            if(objChange->mask==True && mtx->mask==True)
             {
                 int probContagio=probPercent(6); 
                 if(probContagio==1)
@@ -246,7 +224,7 @@ void conditionSpread(CELL *mtx, CELL *objChange) //objChange es la celda que se 
                     
                 }
             }
-            else if(objChange->mask==FALSE && mtx->mask==FALSE)
+            else if(objChange->mask==False && mtx->mask==False)
             {
                 int probContagio=probPercent(60); 
                 if(probContagio==1)
@@ -270,9 +248,7 @@ void conditionSpread(CELL *mtx, CELL *objChange) //objChange es la celda que se 
     }
 }
 
-//Esta función se encarga de encontrar aquellas celdas que estén en riesgo de infectarse
-//y las envía a la función conditionSpread junto con la celda emisora de la infección.
-void spreadVirus(CELL *matrix)
+void spreadVirus(CELL *matrix) //Select the cell that can be infected with the percentage of probability of each 
 {
     CELL *mtx;
     CELL *objChange;
@@ -336,30 +312,30 @@ void spreadVirus(CELL *matrix)
 
 int main()
 {   
-    int probCellOccu;  //Porcentaje de celdas que estarán ocupadas.
-    int days;  //Días que durará el experimento.
+    int probCellOccu;  //Percentage of occupied cells
+    int days;  //Days of the experiments
     setbuf(stdout,NULL);
     printf("\nDime el porcentaje de celdas que se deberan ocupar(0-100): ");
     scanf("%d",&probCellOccu);
     printf("\nDime la cantidad de dias de infeccion: ");
     scanf("%d",&days);
 
-    srand(time(NULL)); //Obtenemos la semilla para poder obtener números aleatorios.
+    srand(time(NULL)); 
 
-    CELL matrix[ROWS][COLLS];  //Creamos una matriz compuesta de elementos del struct CELL.
+    CELL matrix[ROWS][COLLS];  //Creation of the CELL matrix
     matrixNoneValues((CELL *) matrix); 
 
-    int totalCells=ROWS*COLLS; //Calculamos la cantidad de celdas en la matriz principal.
+    int totalCells=ROWS*COLLS; 
     
     initializer((CELL *) matrix, probCellOccu); 
     printerMat((CELL *) matrix); 
 
     randomMatElementChange((CELL *) matrix); 
-    printf("\n\nDia de infeccion numero:0\n"); //Imprimimos el estado inicial de la matriz tras inicializarla y tener el paciente cero.
+    printf("\n\nDia de infeccion numero:0\n"); //Print the first instance of the matrix 
     printerMat((CELL *) matrix); 
     printf("\n  Total de Sanos:%d\n  Total de Enfermos:%d\n  Total de recuperados:%d\n",contadorSanos,contEnfermos,contRecuperados);
     
-    for(int i=0;i<days;i++) //Avanzamos los días del experimento con un for e imprimimos el estado de la matriz cada ciclo.
+    for(int i=0;i<days;i++) //Start the game by changing the days
     {
         printf("\n\nDia de infeccion numero:%d\n",i+1); 
         oneDayPlus((CELL *) matrix); 
@@ -369,7 +345,7 @@ int main()
         printf("\n  Total de Sanos:%d\n  Total de Enfermos:%d\n  Total de recuperados:%d\n",contadorSanos,contEnfermos,contRecuperados);
     }
 
-    int infectedPercent=(contadorSanos*100)/(contadorSanos+contEnfermos+contRecuperados); //Se obtiene el porcentaje final de aquellos que no se infectaron nunca.
+    int infectedPercent=(contadorSanos*100)/(contadorSanos+contEnfermos+contRecuperados); //We can se the stats of this experiment.
     printf("\n\n\tAproximadamente el %d%% de la poblacion nunca se infecto.\n",infectedPercent);
 
     return 0;
